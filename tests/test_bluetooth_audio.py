@@ -6,6 +6,8 @@ from app.audio import AudioManager
 from app.bluetooth import BluetoothManager, PairingAgent
 from app.errors import PlayerError
 from app.models import Settings
+from app.lyrion import LyrionManager
+from types import SimpleNamespace
 from conftest import MAC1
 
 
@@ -78,3 +80,29 @@ async def test_idle_dummy_sink_is_not_an_audio_output():
     assert result['available'] is True
     assert result['sink'] is None and result['volume'] is None
     assert result['sinks'] == [] and result['a2dp'] is False
+
+
+async def test_scan_restart_does_not_lose_discovery_session():
+    bt=BluetoothManager(Settings())
+    bt.settings=SimpleNamespace(scan_duration=.02,adapter='auto')
+    bt.powered=AsyncMock()
+    bt.objects=AsyncMock(return_value={'/org/bluez/hci7':{'org.bluez.Adapter1':{'Address':MAC1}}})
+    bt.call=AsyncMock()
+    await bt.scan()
+    first=bt.scan_task
+    await bt.scan()
+    assert first.cancelled() and bt.scan_adapter=='/org/bluez/hci7'
+    second=bt.scan_task
+    await second
+    assert bt.scan_adapter is None and bt.scan_task is None
+    assert [r.args[2] for r in bt.call.await_args_list].count('StartDiscovery')==2
+    await bt.scan()
+    await bt.scan(False)
+    assert bt.scan_adapter is None and bt.scan_task is None
+
+
+async def test_lms_server_reachable_before_player_registration():
+    lyrion=LyrionManager(Settings(lms_host='192.0.2.20'))
+    lyrion.rpc=AsyncMock(return_value={'player_connected':0})
+    status=await lyrion.status()
+    assert status['server_reachable'] and not status['connected'] and not status['running']

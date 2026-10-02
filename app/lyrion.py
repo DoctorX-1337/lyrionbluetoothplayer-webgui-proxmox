@@ -30,13 +30,14 @@ class LyrionManager:
 
     async def status(self):
         running = bool(self.process and self.process.returncode is None)
-        base = {"connected": False, "running": running, "server": self.settings.lms_host,
+        base = {"connected": False, "server_reachable": False, "running": running, "server": self.settings.lms_host,
                 "player_name": self.settings.player_name, "player_id": self.player_id,
                 "title": "", "artist": "", "album": "", "mode": "stop", "elapsed": 0, "duration": 0, "volume": None}
         if not self.settings.lms_host:
             return base
         try:
             result = await self.rpc(["status", "-", "1", "tags:alK"])
+            base["server_reachable"] = True
             base["connected"] = bool(result.get("player_connected"))
             base["mode"] = result.get("mode", "stop")
             base["elapsed"] = result.get("time", 0)

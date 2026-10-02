@@ -103,6 +103,7 @@ class BluetoothManager:
         self.agent = PairingAgent()
         self.scan_task = None
         self.scan_adapter = None
+        self.scan_lock = asyncio.Lock()
         self.pair_tasks = {}
         self.pair_results = {}
         self.owner = None
@@ -189,32 +190,42 @@ class BluetoothManager:
         await self.call(path, "org.freedesktop.DBus.Properties", "Set", "ssv", ["org.bluez.Adapter1", "Powered", Variant("b", value)])
 
     async def scan(self, start=True):
-        if self.scan_task:
-            self.scan_task.cancel()
-            self.scan_task = None
-        if not start:
-            if self.scan_adapter:
+        async with self.scan_lock:
+            if self.scan_task:
+                self.scan_task.cancel()
+                await asyncio.gather(self.scan_task, return_exceptions=True)
+                self.scan_task = None
+            previous = self.scan_adapter
+            self.scan_adapter = None
+            if not start:
+                if previous:
+                    await self.call(previous, "org.bluez.Adapter1", "StopDiscovery")
+                return
+            await self.powered(True)
+            path, _ = self.selected_adapter(await self.objects())
+            # BlueZ tracks discovery per D-Bus client. Stop our previous session,
+            # including a session whose timer was cancelled during another request.
+            for owned in dict.fromkeys(p for p in (previous, path) if p):
                 try:
-                    await self.call(self.scan_adapter, "org.bluez.Adapter1", "StopDiscovery")
-                finally:
-                    self.scan_adapter = None
-            return
-        await self.powered(True)
-        path, props = self.selected_adapter(await self.objects())
-        await self.call(path, "org.bluez.Adapter1", "SetDiscoveryFilter", "a{sv}", [{"Transport": Variant("s", "bredr")}])
-        if self.scan_adapter != path:
+                    await self.call(owned, "org.bluez.Adapter1", "StopDiscovery")
+                except PlayerError as exc:
+                    if exc.code not in {"Failed", "NotReady", "DoesNotExist"}:
+                        raise
+            await self.call(path, "org.bluez.Adapter1", "SetDiscoveryFilter", "a{sv}", [{"Transport": Variant("s", "bredr")}])
             await self.call(path, "org.bluez.Adapter1", "StartDiscovery")
-        self.scan_adapter = path
+            self.scan_adapter = path
 
-        async def finish():
-            try:
+            async def finish():
                 await asyncio.sleep(self.settings.scan_duration)
-                await self.call(path, "org.bluez.Adapter1", "StopDiscovery")
-            except PlayerError:
-                pass
-            finally:
-                self.scan_adapter = None
-        self.scan_task = asyncio.create_task(finish())
+                async with self.scan_lock:
+                    try:
+                        await self.call(path, "org.bluez.Adapter1", "StopDiscovery")
+                    except PlayerError:
+                        pass
+                    finally:
+                        self.scan_adapter = None
+                        self.scan_task = None
+            self.scan_task = asyncio.create_task(finish())
 
     async def trust(self, mac, value=True):
         path = await self.device_path(mac)
