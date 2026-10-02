@@ -1,0 +1,9 @@
+[Unit]
+Description=Watch explicit Lyrion Bluetooth Player update requests
+
+[Path]
+PathExists=/run/lyrion-bt-update/request
+Unit=lyrion-bt-update.service
+
+[Install]
+WantedBy=multi-user.target

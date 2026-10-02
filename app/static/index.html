@@ -1,0 +1,37 @@
+<!doctype html>
+<html lang="de">
+<head>
+  <meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="theme-color" content="#0b181b">
+  <title>Lyrion Bluetooth Player</title>
+  <link rel="icon" href="/static/favicon/favicon.ico" sizes="any">
+  <link rel="icon" type="image/png" sizes="32x32" href="/static/favicon/favicon-32x32.png">
+  <link rel="apple-touch-icon" href="/static/favicon/apple-touch-icon.png">
+  <link rel="manifest" href="/static/favicon/site.webmanifest">
+  <link rel="stylesheet" href="/static/style.css">
+  <script src="/static/app.js" defer></script>
+</head>
+<body>
+  <aside class="sidebar" id="sidebar">
+    <a class="side-brand" href="/" aria-label="Lyrion Bluetooth Player"><img src="/static/assets/logo.png" alt="LBP Logo"><span>LBP<span class="brand-small">BLUETOOTH PLAYER</span></span></a>
+    <nav aria-label="Hauptnavigation">
+      <a href="/" data-page="dashboard"><span data-icon="dashboard"></span>Dashboard</a>
+      <a href="/bluetooth" data-page="bluetooth"><span data-icon="bluetooth"></span>Bluetooth</a>
+      <a href="/audio" data-page="audio"><span data-icon="volume"></span>Audio</a>
+      <a href="/lyrion" data-page="lyrion"><span data-icon="music"></span>Lyrion</a>
+      <a href="/diagnostics" data-page="diagnostics"><span data-icon="activity"></span>Diagnose</a>
+      <a href="/settings" data-page="settings"><span data-icon="settings"></span>Einstellungen</a>
+    </nav>
+    <div class="sidebar-footer"><img src="/static/assets/logo.png" alt="" class="footer-logo"><p>Musik<br>verbindet<br>Räume.</p><div class="accent-line"></div><small>Lyrion Bluetooth Player<br>v1.0.0 · Lokal im Netzwerk</small></div>
+  </aside>
+  <div class="app-shell">
+    <header class="topbar"><button class="icon-button mobile-menu" id="menu" aria-label="Menü öffnen"><span data-icon="menu"></span></button><img src="/static/assets/logo.png" alt="" class="header-logo"><h1>Lyrion Bluetooth Player</h1><span class="badge healthy network-badge"><i></i>Lokal im Netzwerk</span><div class="top-metrics" id="top-metrics"></div><time id="clock"></time><button class="icon-button" id="logout" title="Abmelden" aria-label="Abmelden"><span data-icon="logout"></span></button></header>
+    <main id="content" aria-live="polite"><div class="loading"><span class="spinner"></span>Status wird geladen …</div></main>
+    <footer class="main-footer"><span>Deine Musik. Dein Netzwerk.</span><span id="stream-status"><i class="status-dot waiting"></i>Verbindung wird aufgebaut</span></footer>
+  </div>
+  <div id="toast" role="status" aria-live="polite" hidden></div>
+  <dialog id="device-dialog"><form id="device-form"><div class="dialog-heading"><h2>Lautsprecher bearbeiten</h2><button type="button" class="icon-button" data-close-dialog aria-label="Schließen">×</button></div><label>Anzeigename<input name="friendly_name" maxlength="64" placeholder="z. B. Terrasse"></label><label>Standardlautstärke<input name="preferred_volume" type="number" min="0" max="100"></label><label>Bevorzugter Codec<select name="preferred_codec"><option value="auto">Automatisch</option><option value="sbc">SBC</option><option value="sbc_xq">SBC XQ</option><option value="aac">AAC</option><option value="aptx">aptX</option><option value="aptx_hd">aptX HD</option><option value="ldac">LDAC</option></select></label><label class="checkbox"><input name="auto_connect" type="checkbox">Automatisch verbinden</label><p class="muted">Nicht unterstützte Codecs fallen auf ein verfügbares A2DP-Profil zurück.</p><div class="dialog-actions"><button type="button" data-close-dialog>Abbrechen</button><button type="submit" class="primary">Speichern</button></div></form></dialog>
+  <dialog id="confirm-dialog"><form id="confirm-form"><h2>Lautsprecher entfernen?</h2><p id="confirm-message"></p><p class="muted">Die Bluetooth-Kopplung und die gespeicherten Geräteeinstellungen werden gelöscht.</p><div class="dialog-actions"><button type="button" data-close-dialog>Abbrechen</button><button type="submit" class="danger">Entfernen</button></div></form></dialog>
+  <dialog id="pair-dialog"><form id="pair-form"><h2>Bluetooth-Kopplung</h2><p id="pair-message"></p><div class="pair-code" id="pair-code"></div><label id="pair-input-label">PIN / Passkey<input id="pair-input" autocomplete="off" maxlength="16"></label><div class="dialog-actions"><button type="button" id="pair-reject">Ablehnen</button><button type="submit" class="primary" id="pair-accept">Bestätigen</button></div></form></dialog>
+  <dialog id="auth-dialog"><form id="auth-form"><img class="auth-logo" src="/static/assets/logo.png" alt="LBP"><p class="eyebrow">LYRION BLUETOOTH PLAYER</p><h2 id="auth-title">Willkommen zurück.</h2><p class="muted" id="auth-description">Melde dich an, um deinen Player zu verwalten.</p><label id="username-label">Benutzername<input name="username" value="admin" autocomplete="username" required></label><label id="password-label">Passwort<input name="password" type="password" autocomplete="current-password" maxlength="256" required></label><label id="new-password-label" hidden>Neues Passwort<input name="new_password" type="password" autocomplete="new-password" minlength="12" maxlength="256"></label><p class="form-error" id="auth-error" role="alert"></p><button class="primary full-width" type="submit" id="auth-submit">Anmelden</button><p class="auth-note"><i class="status-dot healthy"></i> Ausschließlich lokal. Keine Cloud.</p></form></dialog>
+</body></html>

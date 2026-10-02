@@ -1,0 +1,11 @@
+[Unit]
+Description=Install explicitly requested Lyrion Bluetooth Player repository update
+After=network-online.target
+Wants=network-online.target
+
+[Service]
+Type=oneshot
+User=root
+ExecStart=/usr/local/sbin/lyrion-bt-update --request
+UMask=0077
+TimeoutStartSec=15min

@@ -1,0 +1,23 @@
+[application]
+database = "/var/lib/lyrion-bt-player/database.sqlite"
+# Installer ersetzt @UID@ durch die UID von lyrionbt.
+socket = "/run/user/@UID@/lyrion-bt-player/manager.sock"
+auth_enabled = false
+cookie_secure = false
+session_hours = 8
+
+[player]
+lms_host = ""
+lms_port = 9000
+lms_cli_port = 9090
+slimproto_port = 3483
+player_name = "Lyrion Bluetooth"
+player_mac = ""
+adapter = "auto"
+auto_reconnect = true
+auto_start = true
+scan_duration = 30
+connect_timeout = 25
+start_volume = 35
+max_volume = 85
+codec_preference = "auto"

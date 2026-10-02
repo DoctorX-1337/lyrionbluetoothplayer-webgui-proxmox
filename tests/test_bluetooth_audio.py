@@ -1,0 +1,80 @@
+import asyncio
+from unittest.mock import AsyncMock, patch
+import pytest
+from dbus_next import DBusError
+from app.audio import AudioManager
+from app.bluetooth import BluetoothManager, PairingAgent
+from app.errors import PlayerError
+from app.models import Settings
+from conftest import MAC1
+
+
+def test_dynamic_adapter_selection():
+    bt = BluetoothManager(Settings(adapter='AA:BB:CC:DD:EE:01'))
+    objects = {'/org/bluez/hci7':{'org.bluez.Adapter1':{'Address':MAC1}}, '/org/bluez/hci0':{'org.bluez.Adapter1':{'Address':'AA:BB:CC:DD:EE:02'}}}
+    assert bt.selected_adapter(objects)[0] == '/org/bluez/hci7'
+    bt.settings.adapter = 'hci5'
+    with pytest.raises(PlayerError):
+        bt.selected_adapter(objects)
+
+
+async def test_pairing_confirmation_and_rejection():
+    agent = PairingAgent()
+    path = '/org/bluez/hci7/dev_AA_BB_CC_DD_EE_01'
+    with pytest.raises(DBusError):
+        await agent.prompt(path, 'confirmation')
+    agent.allowed.add(path)
+    task = asyncio.create_task(agent.prompt(path, 'confirmation', '123456'))
+    await asyncio.sleep(0)
+    request = agent.pending()[0]
+    assert request['code'] == '123456' and 'future' not in request
+    agent.answer(request['id'], True, '')
+    assert await task == ''
+    task = asyncio.create_task(agent.prompt(path, 'pin'))
+    await asyncio.sleep(0)
+    request = agent.pending()[0]
+    with pytest.raises(PlayerError):
+        agent.answer(request['id'], True, '../bad')
+    agent.answer(request['id'], False, '')
+    with pytest.raises(DBusError):
+        await task
+
+
+async def test_audio_routes_all_existing_streams_and_limits_volume():
+    audio = AudioManager(Settings(max_volume=50))
+    audio.activate_profile = AsyncMock()
+    audio.sink_for = AsyncMock(return_value={'name':'bluez_output_test'})
+    audio.list = AsyncMock(return_value=[{'index': 7}, {'index': 9}])
+    with patch('app.audio.command', new_callable=AsyncMock) as call:
+        await audio.select(MAC1, 90)
+        args = [entry.args for entry in call.await_args_list]
+        assert ('pactl', 'set-default-sink', 'bluez_output_test') in args
+        assert ('pactl', 'set-sink-volume', 'bluez_output_test', '50%') in args
+        assert ('pactl', 'move-sink-input', '7', 'bluez_output_test') in args
+        assert ('pactl', 'move-sink-input', '9', 'bluez_output_test') in args
+
+
+async def test_codec_fallback_uses_available_a2dp():
+    audio = AudioManager(Settings())
+    audio.list = AsyncMock(return_value=[{'index':1,'name':'bluez_card_AA_BB_CC_DD_EE_01','profiles':{'a2dp-sink-sbc':{'available':'yes'},'a2dp-sink-aac':{'available':'no'}}}])
+    with patch('app.audio.command', new_callable=AsyncMock) as call:
+        await audio.activate_profile(MAC1, 'aac')
+        call.assert_awaited_with('pactl', 'set-card-profile', '1', 'a2dp-sink-sbc')
+
+
+async def test_testtone_requires_target_sink():
+    audio = AudioManager(Settings())
+    audio.sink_for = AsyncMock(return_value=None)
+    with pytest.raises(PlayerError):
+        await audio.test(MAC1)
+
+
+async def test_idle_dummy_sink_is_not_an_audio_output():
+    audio = AudioManager(Settings())
+    audio.list = AsyncMock(return_value=[{'name': 'auto_null', 'state': 'IDLE',
+        'volume': {'mono': {'value': 65536}}}])
+    with patch('app.audio.command', new_callable=AsyncMock, return_value='auto_null\n'):
+        result = await audio.status()
+    assert result['available'] is True
+    assert result['sink'] is None and result['volume'] is None
+    assert result['sinks'] == [] and result['a2dp'] is False
