@@ -35,6 +35,19 @@ IN ACCEPT -source <MANAGEMENT-CIDR> -p tcp -dport 22
 
 Der Self-Installer setzt das Firewall-Flag an der Gast-Netzwerkkarte. Dies ersetzt nicht ein eingerichtetes Cluster-/Node-/Gast-Regelwerk.
 
+## Optionaler HTTPS-Reverse-Proxy
+
+Eine vorhandene Nginx-Instanz kann HTTPS mit ihrem eigenen Zertifikat terminieren und auf `http://<PLAYER-IP>:8080` weiterleiten. Für Livestatus/SSE `proxy_buffering off`, HTTP/1.1 und einen langen `proxy_read_timeout` setzen. Der Proxy muss `Host` erhalten und `X-Forwarded-Proto https` setzen. Eine eigene virtuelle Hostkonfiguration verhindert, dass die Adresse auf den Standardserver des Proxys fällt.
+
+Auf dem Player in `/etc/systemd/user/lyrion-bt-web.service.d/10-reverse-proxy.conf` ausschließlich die tatsächliche Proxy-Adresse freigeben:
+
+```ini
+[Service]
+Environment=FORWARDED_ALLOW_IPS=127.0.0.1,<PROXY-IP>
+```
+
+Anschließend die User-Units neu laden und den Webdienst neu starten. So erkennt die API HTTPS korrekt und prüft den Browser-Origin weiterhin. Keine pauschale Freigabe mit `*` setzen. Dieser lokale systemd-Drop-in bleibt bei Repository-Updates erhalten. Bei ausschließlichem HTTPS-Zugriff kann zusätzlich `cookie_secure=true` gesetzt werden; Cookies werden dann über direktes HTTP nicht übertragen.
+
 ## Persistenz und Berechtigungen
 
 Konfiguration: root:lyrionbt, 0640. Initialpasswort: root, 0600. SQLite-Dateien: lyrionbt, 0600. Unix-Manager-Socket liegt im privaten Runtime-Verzeichnis des Servicebenutzers. Anwendungscode und root-eigene Updateprogramme sind für diesen Benutzer nicht schreibbar.
