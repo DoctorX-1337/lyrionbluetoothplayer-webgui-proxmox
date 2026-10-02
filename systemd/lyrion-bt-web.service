@@ -5,12 +5,13 @@ Wants=lyrion-bt-manager.service
 
 [Service]
 Type=simple
-ExecStart=/opt/lyrion-bt-player/.venv/bin/uvicorn app.web:create_app --factory --host 0.0.0.0 --port 8080 --no-access-log --log-level warning
+ExecStart=/opt/lyrion-bt-player/.venv/bin/uvicorn app.web:create_app --factory --host 0.0.0.0 --port 8080 --no-access-log --log-level warning --timeout-graceful-shutdown 5
 Environment=LYRION_BT_CONFIG=/etc/lyrion-bt-player/config.toml
 WorkingDirectory=/opt/lyrion-bt-player
 UMask=0077
 Restart=on-failure
 RestartSec=5
+TimeoutStopSec=15
 NoNewPrivileges=true
 
 [Install]
