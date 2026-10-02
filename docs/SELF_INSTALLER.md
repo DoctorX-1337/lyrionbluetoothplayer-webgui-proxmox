@@ -51,4 +51,6 @@ Die Erkennung prüft `btusb` oder USB-Klasse/Subklasse/Protokoll für Bluetooth.
 
 Ein bereits belegter VM-Identifier führt zum Abbruch. Der Self-Installer ersetzt keine bestehenden Gäste. Der direkte `install.sh` im Gast ist wiederholbar und erhält die vorhandene Konfiguration sowie das vorhandene Administratorkonto.
 
+Feste Gastadressen müssen außerhalb des DHCP-Pools liegen oder im DHCP-Server reserviert sein. Der Installer prüft eine angegebene feste Adresse gegen Proxmox-Gastkonfigurationen. Sobald der Guest Agent erreichbar ist, prüft er auch eine DHCP-Adresse gegen bekannte feste Gastadressen. Bei einer Kollision hält er ausschließlich die neue VM an. Andere Rechner außerhalb der Proxmox-Konfiguration werden durch diese Prüfung nicht erfasst.
+
 Bei einem Fehler bleibt ein bereits erstellter Gast zur Diagnose erhalten. In dessen Konsole `cloud-init status --long`, `journalctl` und die HCI-Prüfung aus der Bluetooth-Dokumentation ausführen. Eine automatische Löschung einer fehlgeschlagenen VM findet nicht statt.

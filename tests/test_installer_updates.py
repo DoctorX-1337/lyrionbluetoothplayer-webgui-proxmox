@@ -11,7 +11,7 @@ import pytest
 import httpx
 from app.errors import PlayerError
 from app.updates import UpdateChecker
-from deploy.pve_install import validate_network, adapter_assigned
+from deploy.pve_install import validate_network, adapter_assigned, static_address_in_use, guest_addresses
 
 
 @pytest.mark.parametrize('network',['ip=dhcp','ip=192.0.2.10/24,gw=192.0.2.1'])
@@ -34,6 +34,18 @@ def test_installer_detects_usb_ownership_even_for_stopped_guests(tmp_path):
     assert adapter_assigned(adapter,tmp_path)
     config.write_text('usb0: host=9-1\n')
     assert not adapter_assigned(adapter,tmp_path)
+
+
+def test_installer_detects_dhcp_conflicts_with_static_guests(tmp_path):
+    lxc=tmp_path/'node'/'lxc';lxc.mkdir(parents=True)
+    vm=tmp_path/'node'/'qemu-server';vm.mkdir()
+    (lxc/'200.conf').write_text('net0: name=eth0,ip=192.0.2.20/24,gw=192.0.2.1\n')
+    (vm/'201.conf').write_text('ipconfig0: ip=192.0.2.21/24,gw=192.0.2.1\n')
+    assert static_address_in_use('192.0.2.20',directory=tmp_path)
+    assert static_address_in_use('192.0.2.21',directory=tmp_path)
+    assert not static_address_in_use('192.0.2.1',directory=tmp_path)
+    assert not static_address_in_use('192.0.2.21',vmid=201,directory=tmp_path)
+    assert guest_addresses({'result':[{'ip-addresses':[{'ip-address-type':'ipv4','ip-address':'127.0.0.1'},{'ip-address-type':'ipv4','ip-address':'192.0.2.22'}]}]})==['192.0.2.22']
 
 
 async def test_update_check_is_explicit_and_pins_commit(tmp_path):

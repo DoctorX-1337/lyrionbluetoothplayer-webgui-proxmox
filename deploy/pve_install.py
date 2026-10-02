@@ -76,6 +76,27 @@ def adapter_assigned(adapter, directory=Path('/etc/pve/qemu-server')):
     return False
 
 
+def static_address_in_use(address, vmid=None, directory=Path('/etc/pve/nodes')):
+    """Check addresses recorded in the cluster; DHCP must exclude these."""
+    for kind in ('lxc','qemu-server'):
+        for config in directory.glob('*/'+kind+'/*.conf'):
+            if config.stem==str(vmid):
+                continue
+            for line in config.read_text().splitlines():
+                if not re.match(r'^(net|ipconfig)\d+:',line):
+                    continue
+                match=re.search(r'(?:[:,]\s*|,)ip=([0-9.]+)(?:/\d+)?(?:,|$)',line)
+                if match and match[1]==address:
+                    return True
+    return False
+
+
+def guest_addresses(data):
+    interfaces=data.get('result',data) if isinstance(data,dict) else data
+    return [entry['ip-address'] for interface in interfaces for entry in interface.get('ip-addresses',[])
+        if entry.get('ip-address-type')=='ipv4' and not ipaddress.IPv4Address(entry['ip-address']).is_loopback]
+
+
 def guest_exec(vmid, command, timeout=30):
     data = json.loads(run('qm','guest','exec',str(vmid),'--timeout',str(timeout),'--','bash','-lc',command,timeout=timeout+15))
     if data.get('exitcode') != 0:
@@ -129,6 +150,8 @@ def provision(args):
         raise ValueError('Ungültige Bridge')
     run('ip','link','show',args.bridge)
     validate_network(args.ip_config)
+    if args.ip_config!='ip=dhcp' and static_address_in_use(args.ip_config.split('=',1)[1].split('/',1)[0]):
+        raise ValueError('Die gewünschte Adresse ist bereits einem Proxmox-Gast zugeordnet.')
     if args.dns:
         ipaddress.IPv4Address(args.dns)
     if args.cores<1 or args.memory<1024 or args.disk<8:
@@ -222,6 +245,17 @@ bash /opt/lyrion-bt-player-source/install.sh
     step(5,'Automatische Gastinstallation abwarten')
     deadline=time.monotonic()+args.wait_timeout
     while time.monotonic()<deadline:
+        try:
+            addresses=guest_addresses(json.loads(run('qm','guest','cmd',str(vmid),'network-get-interfaces',timeout=20)))
+        except (RuntimeError,subprocess.TimeoutExpired,ValueError):
+            time.sleep(5)
+            continue
+        if any(static_address_in_use(address,vmid) for address in addresses):
+            try:
+                run('qm','shutdown',str(vmid),'--timeout','30',timeout=45)
+            except RuntimeError:
+                run('qm','stop',str(vmid))
+            raise ValueError('IP-Konflikt mit einem vorhandenen Proxmox-Gast. Die neue VM wurde angehalten. DHCP-Bereich korrigieren oder --ip-config mit einer freien festen Adresse verwenden.')
         try:
             guest_exec(vmid,'curl --fail --silent http://127.0.0.1:8080/api/auth/session',timeout=15)
             break
