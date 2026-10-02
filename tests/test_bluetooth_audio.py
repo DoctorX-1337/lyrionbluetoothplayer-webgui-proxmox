@@ -103,6 +103,8 @@ async def test_scan_restart_does_not_lose_discovery_session():
 
 async def test_lms_server_reachable_before_player_registration():
     lyrion=LyrionManager(Settings(lms_host='192.0.2.20'))
-    lyrion.rpc=AsyncMock(return_value={'player_connected':0})
+    lyrion.rpc=AsyncMock(side_effect=[{'_version':'9.0'},PlayerError('Player noch nicht registriert')])
     status=await lyrion.status()
     assert status['server_reachable'] and not status['connected'] and not status['running']
+    assert lyrion.rpc.await_args_list[0].args==(['version','?'],)
+    assert lyrion.rpc.await_args_list[0].kwargs=={'player':''}

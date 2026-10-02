@@ -36,8 +36,9 @@ class LyrionManager:
         if not self.settings.lms_host:
             return base
         try:
-            result = await self.rpc(["status", "-", "1", "tags:alK"])
+            await self.rpc(["version", "?"], player="")
             base["server_reachable"] = True
+            result = await self.rpc(["status", "-", "1", "tags:alK"])
             base["connected"] = bool(result.get("player_connected"))
             base["mode"] = result.get("mode", "stop")
             base["elapsed"] = result.get("time", 0)
