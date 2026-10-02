@@ -21,6 +21,7 @@ def report(state,message,progress):
     path=RUNTIME/'status.json'
     temporary=RUNTIME/('status-'+str(os.getpid())+'.tmp')
     fd=os.open(temporary,os.O_CREAT|os.O_EXCL|os.O_WRONLY,0o640)
+    os.fchmod(fd,0o640)  # Root systemd UMask=0077 must not hide progress from the app.
     with os.fdopen(fd,'w') as file:
         json.dump({'state':state,'message':message,'progress':progress,'timestamp':time.time()},file)
     import grp

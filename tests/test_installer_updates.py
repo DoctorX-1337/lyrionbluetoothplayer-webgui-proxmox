@@ -1,6 +1,7 @@
 import importlib.util
 import io
 import json
+import os
 from pathlib import Path
 import sys
 import tarfile
@@ -79,3 +80,18 @@ def test_update_archive_rejects_traversal_and_symlinks():
         with tarfile.open(fileobj=data,mode='r') as archive:
             with pytest.raises(ValueError):
                 module.safe_members(archive)
+
+
+@pytest.mark.skipif(os.name!='posix',reason='Linux service file permissions')
+def test_update_progress_readable_with_restrictive_service_umask(tmp_path):
+    spec=importlib.util.spec_from_file_location('repo_update_permissions',Path(__file__).parents[1]/'scripts/repo_update.py')
+    module=importlib.util.module_from_spec(spec);spec.loader.exec_module(module)
+    module.RUNTIME=tmp_path
+    previous=os.umask(0o077)
+    try:
+        with patch('grp.getgrnam',return_value=SimpleNamespace(gr_gid=os.getgid())),patch.object(module.os,'chown'):
+            module.report('success','Update abgeschlossen.',100)
+    finally:
+        os.umask(previous)
+    assert (tmp_path/'status.json').stat().st_mode & 0o777 == 0o640
+    assert json.loads((tmp_path/'status.json').read_text())['state']=='success'
