@@ -34,9 +34,12 @@ Details und unbeaufsichtigte Installation: [Self-Installer](docs/SELF_INSTALLER.
 - Automatischer Reconnect mit 5, 10, 20, 30 und maximal 60 Sekunden Abstand.
 - A2DP-Profilwahl, Audio-Routing und Testton ohne externe Audiodatei.
 - Titel, Interpret, Album und Wiedergabesteuerung über die LMS-JSON-RPC-API.
+
 - Direkter Webzugang im LAN ohne Anmeldung; optionale lokale Anmeldung mit Passwortwechsel. CSRF-Schutz bleibt aktiv.
 - REST-API, SSE-Livestatus, CLI, systemd-Units und SQLite-Migrationen.
 - Explizite Updates über dieses öffentliche Repository in Einstellungen oder per CLI.
+
+Die Lautstärke in der Weboberfläche steuert den Bluetooth-Ausgang einschließlich der eingestellten Obergrenze. Squeezelite startet mit 100 % Musikpegel, damit der Server den bereits geregelten Ausgang nicht zusätzlich absenkt. Startlautstärke und gespeicherte Lautsprecherlautstärke gelten für den Ausgang. Spätere bewusste Änderungen im LMS bleiben möglich.
 
 ## 2. Architektur
 

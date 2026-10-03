@@ -49,7 +49,10 @@ class LyrionManager:
                 for key in ("title", "artist", "album", "duration"):
                     base[key] = track.get(key, base.get(key))
             if base["connected"] and not self.volume_initialized:
-                await self.rpc(["mixer", "volume", str(min(self.settings.start_volume, self.settings.max_volume))])
+                # PipeWire applies the speaker volume and its configured ceiling.
+                # Lowering Squeezelite as well attenuates the music a second time.
+                await self.rpc(["mixer", "volume", "100"])
+                base["volume"] = 100
                 self.volume_initialized = True
         except PlayerError:
             pass

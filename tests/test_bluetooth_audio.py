@@ -108,3 +108,35 @@ async def test_lms_server_reachable_before_player_registration():
     assert status['server_reachable'] and not status['connected'] and not status['running']
     assert lyrion.rpc.await_args_list[0].args==(['version','?'],)
     assert lyrion.rpc.await_args_list[0].kwargs=={'player':''}
+
+
+@pytest.mark.parametrize('start_volume', [0, 35, 60])
+async def test_music_is_not_attenuated_by_a_second_start_volume(start_volume):
+    lyrion = LyrionManager(Settings(lms_host='192.0.2.20', start_volume=start_volume, max_volume=60))
+    async def rpc(command, player=None):
+        if command[0] == 'status':
+            return {'player_connected': 1, 'mixer volume': 35}
+        return {}
+    lyrion.rpc = AsyncMock(side_effect=rpc)
+    status = await lyrion.status()
+    assert status['volume'] == 100
+    mixer_calls = [call.args[0] for call in lyrion.rpc.await_args_list if call.args[0][0] == 'mixer']
+    assert mixer_calls == [['mixer', 'volume', '100']]
+
+
+async def test_music_gain_initialized_only_once_after_player_connects():
+    lyrion = LyrionManager(Settings(lms_host='192.0.2.20'))
+    connected = False
+    async def rpc(command, player=None):
+        if command[0] == 'status':
+            return {'player_connected': int(connected), 'mixer volume': 42}
+        return {}
+    lyrion.rpc = AsyncMock(side_effect=rpc)
+    await lyrion.status()
+    assert not lyrion.volume_initialized
+    connected = True
+    await lyrion.status()
+    status = await lyrion.status()
+    assert status['volume'] == 42  # Later intentional LMS adjustments remain intact.
+    mixer_calls = [call.args[0] for call in lyrion.rpc.await_args_list if call.args[0][0] == 'mixer']
+    assert mixer_calls == [['mixer', 'volume', '100']]
